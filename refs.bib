@@ -1,0 +1,196 @@
+@article{DBSCAN,
+author = {Campello, Ricardo and Kröger, Peer and Sander, Joerg and Zimek, Arthur},
+year = {2019},
+month = {10},
+pages = {},
+title = {Density‐based clustering},
+volume = {10},
+journal = {Wiley Interdisciplinary Reviews: Data Mining and Knowledge Discovery},
+doi = {10.1002/widm.1343}
+}
+
+@inproceedings{DB_SCAN_1996,
+	author = {Ester, Martin and Kriegel, Hans-Peter and Sander, J\"{o}rg and Xu, Xiaowei},
+	title = {A density-based algorithm for discovering clusters in large spatial databases with noise},
+	year = {1996},
+	publisher = {AAAI Press},
+	abstract = {Clustering algorithms are attractive for the task of class identification in spatial databases. However, the application to large spatial databases rises the following requirements for clustering algorithms: minimal requirements of domain knowledge to determine the input parameters, discovery of clusters with arbitrary shape and good efficiency on large databases. The well-known clustering algorithms offer no solution to the combination of these requirements. In this paper, we present the new clustering algorithm DBSCAN relying on a density-based notion of clusters which is designed to discover clusters of arbitrary shape. DBSCAN requires only one input parameter and supports the user in determining an appropriate value for it. We performed an experimental evaluation of the effectiveness and efficiency of DBSCAN using synthetic data and real data of the SEQUOIA 2000 benchmark. The results of our experiments demonstrate that (1) DBSCAN is significantly more effective in discovering clusters of arbitrary shape than the well-known algorithm CLAR-ANS, and that (2) DBSCAN outperforms CLARANS by a factor of more than 100 in terms of efficiency.},
+	booktitle = {Proceedings of the Second International Conference on Knowledge Discovery and Data Mining},
+	pages = {226–231},
+	numpages = {6},
+	keywords = {handling nlj4-275oise, efficiency on large spatial databases, clustering algorithms, arbitrary shape of clusters},
+	location = {Portland, Oregon},
+	series = {KDD'96}
+}
+
+@article{DBSCAN_REVISITED,
+author = {Schubert, Erich and Sander, J\"{o}rg and Ester, Martin and Kriegel, Hans Peter and Xu, Xiaowei},
+title = {DBSCAN Revisited, Revisited: Why and How You Should (Still) Use DBSCAN},
+year = {2017},
+issue_date = {September 2017},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {42},
+number = {3},
+issn = {0362-5915},
+url = {https://doi.org/10.1145/3068335},
+doi = {10.1145/3068335},
+abstract = {At SIGMOD 2015, an article was presented with the title “DBSCAN Revisited: Mis-Claim, Un-Fixability, and Approximation” that won the conference’s best paper award. In this technical correspondence, we want to point out some inaccuracies in the way DBSCAN was represented, and why the criticism should have been directed at the assumption about the performance of spatial index structures such as R-trees and not at an algorithm that can use such indexes. We will also discuss the relationship of DBSCAN performance and the indexability of the dataset, and discuss some heuristics for choosing appropriate DBSCAN parameters. Some indicators of bad parameters will be proposed to help guide future users of this algorithm in choosing parameters such as to obtain both meaningful results and good performance. In new experiments, we show that the new SIGMOD 2015 methods do not appear to offer practical benefits if the DBSCAN parameters are well chosen and thus they are primarily of theoretical interest. In conclusion, the original DBSCAN algorithm with effective indexes and reasonably chosen parameter values performs competitively compared to the method proposed by Gan and Tao.},
+journal = {ACM Trans. Database Syst.},
+month = {jul},
+articleno = {19},
+numpages = {21},
+keywords = {DBSCAN, density-based clustering, range-search complexity}
+}
+
+@article{G_DBSCAN,
+author = {Andrade, Guilherme and Ramos, Gabriel and Madeira, Daniel and Oliveira, Rafael and Ferreira, Renato and Rocha, Leonardo},
+year = {2013},
+month = {12},
+pages = {369-378},
+title = {G-DBSCAN: A GPU accelerated algorithm for density-based clustering},
+volume = {18},
+journal = {Procedia Computer Science},
+doi = {10.1016/j.procs.2013.05.200}
+}
+
+@misc{CUDA_Guide,
+    title = {CUDA C++ Programming Guide},
+    note = {https://docs.nvidia.com/cuda/pdf/CUDA\_C\_Programming\_Guide.pdf},
+    year = {2024},
+    howpublished = {PDF}
+}
+
+@misc{S_DBSCAN,
+      title={Scalable Density-based Clustering with Random Projections}, 
+      author={Haochuan Xu and Ninh Pham},
+      year={2024},
+      eprint={2402.15679},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+
+@InProceedings{CUDA_graph_algos,
+author="Harish, Pawan
+and Narayanan, P. J.",
+editor="Aluru, Srinivas
+and Parashar, Manish
+and Badrinath, Ramamurthy
+and Prasanna, Viktor K.",
+title="Accelerating Large Graph Algorithms on the GPU Using CUDA",
+booktitle="High Performance Computing -- HiPC 2007",
+year="2007",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="197--208",
+abstract="Large graphs involving millions of vertices are common in many practical applications and are challenging to process. Practical-time implementations using high-end computers are reported but are accessible only to a few. Graphics Processing Units (GPUs) of today have high computation power and low price. They have a restrictive programming model and are tricky to use. The G80 line of Nvidia GPUs can be treated as a SIMD processor array using the CUDA programming model. We present a few fundamental algorithms -- including breadth first search, single source shortest path, and all-pairs shortest path -- using CUDA on large graphs. We can compute the single source shortest path on a 10 million vertex graph in 1.5 seconds using the Nvidia 8800GTX GPU costing {\$}600. In some cases optimal sequential algorithm is not the fastest on the GPU architecture. GPUs have great potential as high-performance co-processors.",
+isbn="978-3-540-77220-0"
+}
+
+@article{Jayshree2012,
+	author       = {Jayshree Ghorpade and
+	Jitendra Parande and
+	Madhura Kulkarni and
+	Amit Bawaskar},
+	title        = {{GPGPU} Processing in {CUDA} Architecture},
+	journal      = {CoRR},
+	volume       = {abs/1202.4347},
+	year         = {2012},
+	url          = {http://arxiv.org/abs/1202.4347},
+	eprinttype    = {arXiv},
+	eprint       = {1202.4347},
+	timestamp    = {Mon, 13 Aug 2018 16:47:27 +0200},
+	biburl       = {https://dblp.org/rec/journals/corr/abs-1202-4347.bib},
+	bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+
+@ARTICLE{Owens2008,
+	author={Owens, John D. and Houston, Mike and Luebke, David and Green, Simon and Stone, John E. and Phillips, James C.},
+	journal={Proceedings of the IEEE}, 
+	title={GPU Computing}, 
+	year={2008},
+	volume={96},
+	number={5},
+	pages={879-899},
+	keywords={Graphics;Central Processing Unit;Physics computing;Engines;Arithmetic;Bandwidth;Microprocessors;Hardware;Computational biophysics;Performance gain;General-purpose computing on the graphics processing unit (GPGPU);GPU computing;parallel computing},
+	doi={10.1109/JPROC.2008.917757}
+}
+
+@misc{nvidia_cuda,
+	author = {NVIDIA},
+	title = {CUDA Toolkit},
+	year = {2023},
+	url = {https://developer.nvidia.com/cuda-toolkit},
+	note = {Accessed: June 17, 2024}
+}
+
+@misc{CUDARefresher2023,
+	author = {{NVIDIA Developer}},
+	title = {CUDA Refresher: The CUDA Programming Model},
+	year = {2023},
+	url = {https://developer.nvidia.com/blog/cuda-refresher-cuda-programming-model/},
+	note = {Accessed: 2024-06-19}
+}
+
+@article{campello_density-based_2020,
+	title = {Density‐based clustering},
+	author = {Campello, Ricardo J. G. B. and Kröger, Peer and Sander, Jörg and Zimek, Arthur},
+	journal = {Wiley Interdisciplinary Reviews. Data Mining and Knowledge Discovery},
+	volume = {10},
+	number = {2},
+	year = {2020},
+	doi = {10.1002/widm.1343},
+	url = {https://doi.org/10.1002/widm.1343}
+}
+
+@manual{R-dbscan,
+	title = {dbscan: Density Based Clustering of Applications with Noise (DBSCAN) and Related Algorithms},
+	author = {Michael Hahsler and Matthew Piekenbrock and Sunil Arya and David Mount},
+	year = {2023},
+	note = {R package version 1.1-12},
+	url = {https://cran.r-project.org/web/packages/dbscan/index.html}
+}
+
+
+@manual{ELKI-dbscan,
+	title = {ELKI: Environment for Developing KDD-Applications Supported by Index-Structures},
+	author = {{ELKI Development Team}},
+	organization = {ELKI Development Team},
+	year = {2024},
+	url = {https://elki-project.github.io/howto/clustering/}
+}
+
+@manual{scikit-learn-dbscan,
+	title = {scikit-learn: Machine Learning in Python},
+	author = {{ELKI Development Team}},
+	year = {2024},
+	url = {https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html}
+}
+
+@manual{Weka-dbscan,
+	title = {The Weka Workbench},
+	author = {Matthias Schubert and Zhanna Melnikova-Albrecht and Rainer Holzmann},
+	organization = {Waikato Environment for Knowledge Analysis},
+	year = {2023},
+	url = {https://weka.sourceforge.io/doc.packages/optics_dbScan/weka/clusterers/DBSCAN.html}
+}
+
+@book{GPUOptical,
+	author = {Wang, Tianyi and Kemao, Qian},
+	year = {2017},
+	month = {12},
+	pages = {},
+	title = {GPU Acceleration for Optical Measurement},
+	isbn = {9781510617346},
+	doi = {10.1117/3.2314949}
+}
+
+@article{IGN4080SuperReview,
+	author = {{IGN Staff}},
+	title = {Nvidia GeForce RTX 4080 Super Review},
+	journal = {IGN},
+	year = {2024},
+	url = {https://www.ign.com/articles/nvidia-geforce-rtx-4080-super-review},
+}
+
+
