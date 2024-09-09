@@ -32,8 +32,10 @@
 
 % Marcos
 \newcommand{\br}{\mathbf{r}}
+\newcommand{\brj}{\mathbf{r}_{j}}
 \newcommand{\bq}{\mathbf{q}}
 \newcommand{\bx}{\mathbf{x}}
+\newcommand{\bxi}{\mathbf{x}_{i}}
 \newcommand{\eps}{\epsilon}
 \newcommand{\Bq}{B_{\eps}(\bq)}
 \newcommand{\Bx}{\widetilde{B}_{\eps}(\bx)}
@@ -43,10 +45,19 @@
 \newcommand{\bu}{\mathbf{u}}
 \newcommand{\bv}{\mathbf{v}}
 \newcommand{\bw}{\mathbf{w}}
-\newcommand{\bR}{\mathbf{R}}
+\newcommand{\bY}{\mathbf{R}}
 \newcommand{\bX}{\mathbf{X}}
 \newcommand{\bP}{\mathbf{P}}
-
+\newcommand{\bA}{\mathbf{A}}
+\newcommand{\bB}{\mathbf{B}}
+\newcommand{\phiCi}{\Phi_i}
+\newcommand{\phiFi}{\overline{\Phi}_i}
+\newcommand{\fPhiCi}[2]{\Phi_{#1,#2}}
+\newcommand{\fPhiFi}[2]{\overline{\Phi}_{#1,#2}}
+\newcommand{\omegaCj}{\Omega_j}
+\newcommand{\omegaFj}{\overline{\Omega}_j}
+\newcommand{\fOmegaCj}[2]{\Omega_{#1,#2}}
+\newcommand{\fOmegaFj}[2]{\overline{\Omega}_{#1,#2}}
 
 \begin{document}
 
@@ -170,7 +181,7 @@ sDBSCAN\cite{S_DBSCAN} is an implementation of DBSCAN based on using random proj
 		\hline
 		\textbf{Parameter} & \textbf{Description} \\ 
 		\hline
-		$\mathbf{Y}$ & A set of $D$ random vectors with the same dimension as points in $X$. Each random vector has coordinates sampled from the standard normal distribution. Formally: $\mathbf{Y} = \left\{ \br^i \mid \br^i \in \mathbb{R}^d, \ \br^i \sim \mathcal{N}(0,1), \ i \in [D] \right\}$ \\ \hline
+		$Y$ & A set of $D$ random vectors with the same dimension as points in $X$. Each random vector has coordinates sampled from the standard normal distribution. Formally: $\mathbf{Y} = \left\{ \br^i \mid \br^i \in \mathbb{R}^d, \ \br^i \sim \mathcal{N}(0,1), \ i \in [D] \right\}$ \\ \hline
 		$k$ & The number of closest/furthest random vectors from $Y$ to store for each query point $\bq \in X$ \\ \hline
 		$m$ & The number of closest/furthest query points from $X$ to store for each random vector $\br \in Y$. Where $m > minPts$.\\ \hline
 	\end{tabular}
@@ -319,15 +330,64 @@ The process of finding the closest/furthest $k$ random vectors to each query poi
 The projections between each dataset point $\bx_i$ and a given random vector $\br_j$ can be easily parallelised using a large matrix multiplication. This matrix multiplication can be easily paraellized using GPU hardware.
 
 \begin{enumerate}
-    \item First, create a matrix $\bR \in \mathbb{R}^{d \times D}$ containing $D$ random vectors, the shape of $R$ means that $D$ random vectors of length $d$ are stored \textit{column-wise} within it.
+    \item First, create a matrix $\bY \in \mathbb{R}^{d \times D}$ with entires sampled from $\mathcal{N}(0, 1)$, the shape of $R$ means that $D$ random vectors of length $d$ are stored \textit{column-wise} within it.
     \item Re-express the set of data points $X$ into a matrix $\bX \in \mathbb{R}^{n \times d}$, the shape of $\bX$ means that the $n$ dataset points of length $d$ are stored \textit{row-wise} within it.
 \end{enumerate}
 
-Now given the matrices $\bR$ and $\bX$, simply calculate the matrix product $\bP=\bX\bR$. A given entry $\bP_{ij}$ is then the projection of the data point $\bx_i$ onto the random vector $\br_j$.
+Now given the matrices $\bY$ and $\bX$, simply calculate the matrix product $\bP=\bX\bY$. A given entry $\bP_{ij}$ is then the projection of the data point $\bxi$ onto the random vector $\brj$.
 
-\subsubsection{Ranking $k$ and $m$ closest/furthest vectors}
-While the original CPU implementation of sDBSCAN relied on a priority queue approach with ranking the $k$ closest/furthest random vectors to each dataset point (and vice-versa for the top $m$ closest/furthest data points to each random vector), using the power of a GPU, we can make this process much simpler. Consequently, we simply \textit{sort} the projections matrix $P$ first along the rows, then along the columns to complete this process. Since a GPU can sort individual rows or columns in parallel, this is a relatively trivial and quick step.
+\subsubsection{Finding Candidate Points}
 
+
+While the original CPU implementation of sDBSCAN relied on a priority queue approach to find the $2km$ candidate vectors for each data point $\bxi$, using the power of a GPU, we can make this process much simpler. We can simply \textit{sort} the projections matrix $P$ - first along the rows, then along the columns. Since a GPU can sort individual rows or columns in parallel, this is a relatively trivial step. For ease of notation, we will define the lists $\phiCi$, $\phiFi$, $\omegaCj$ and $\omegaFj$. The definitions of these lists are shown in Table \ref{tab:index-lists}.
+
+\renewcommand{\arraystretch}{1.3} % Adjust the row height
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|l|}
+    \hline
+    \textbf{Notation} & \textbf{Definition} \\ 
+    \hline
+    $\phiCi$ & The indices of the $k$ closest random vectors in $R$ to the dataset vector $\bxi$. \\ 
+    \hline
+    $\phiFi$ & The indices of the $k$ furthest random vectors in $R$ to the dataset vector $\bxi$. \\ 
+    \hline
+    $\omegaCj$ & The indices of the $m$ closest dataset points in $X$ to the random vector $\brj$. \\ 
+    \hline
+    $\omegaFj$ & The indices of the $m$  furthest dataset points in $X$ to the random vector $\brj$. \\ 
+    \hline
+    \end{tabular}
+    \caption{List definitions used for the preprocessing steps}
+    \label{tab:index-lists}
+\end{table}
+
+For ease of indexing large matrices when working with a GPU, the content of the above lists are modified and stored in the matrices $\bA \in \mathbb{N}^{n \times 2k}$ (Eq. \ref{eq:matrixA}) and $\bB  \in \mathbb{N}^{2D \times m}$ (Eq. \ref{eq:matrixB}). The reasoning behind the structure of $\bA$ and $\bB$ will be clearer later in this paper - essentially, they are composed this way to allow for easy tensor indexing using libraries such as PyTorch \cite{Ansel_PyTorch_2_Faster_2024} or CuPy \cite{cupy_learningsys2017}. 
+
+\begin{equation}
+\bA = \begin{bmatrix}
+2 \times \fPhiCi{1}{1} & 2 \times\fPhiCi{1}{2} & \cdots & 2 \times\fPhiCi{1}{k} & 2 \times\fPhiFi{1}{1} + 1 & 2 \times\fPhiFi{1}{2} + 1 & \cdots & 2 \times \fPhiFi{1}{k} + 1 \\
+2 \times \fPhiCi{2}{1} & 2 \times\fPhiCi{2}{2} & \cdots & 2 \times\fPhiCi{2}{k} & 2 \times\fPhiFi{2}{1} + 1 & 2 \times\fPhiFi{2}{2} + 1 & \cdots & 2 \times \fPhiFi{2}{k} + 1 \\
+\vdots & \vdots & \ddots & \vdots & \vdots & \vdots & \ddots & \vdots \\
+2 \times \fPhiCi{n}{1} & 2 \times \fPhiCi{n}{2} & \cdots & 2 \times\fPhiCi{n}{k} & 2 \times\fPhiFi{n}{1} + 1 & 2 \times\fPhiFi{n}{2} + 1 & \cdots & 2 \times \fPhiFi{n}{k} + 1
+\end{bmatrix}
+\label{eq:matrixA}
+\end{equation}
+
+\begin{equation}
+\bB = \begin{bmatrix}
+\fOmegaCj{0}{1} & \fOmegaCj{0}{2} & \cdots & \fOmegaCj{0}{m} \\
+\fOmegaFj{0}{1} & \fOmegaFj{0}{2} & \cdots & \fOmegaFj{0}{m} \\ 
+
+\fOmegaCj{1}{1} & \fOmegaCj{1}{2} & \cdots & \fOmegaCj{1}{m} \\ 
+\fOmegaFj{1}{1} & \fOmegaFj{1}{2} & \cdots & \fOmegaFj{1}{m} \\ 
+\vdots & \vdots & \ddots & \vdots             \\
+
+\fOmegaCj{D}{1} & \fOmegaCj{D}{2} & \cdots & \fOmegaCj{D}{m} \\ 
+\fOmegaFj{D}{1} & \fOmegaFj{D}{2} & \cdots & \fOmegaFj{D}{m} \\ 
+\end{bmatrix}
+\label{eq:matrixB}
+\end{equation}
 
 \section{Experiment}
 
