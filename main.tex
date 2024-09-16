@@ -1,20 +1,26 @@
 \documentclass{article}
 \usepackage{graphicx} % Required for inserting images
-\usepackage{todonotes}
+% \usepackage{todonotes}
 \usepackage{amsmath}
 \usepackage{easyReview}
 \usepackage{amssymb}
 \usepackage{amsfonts}
 \usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{cite}
 \usepackage{algpseudocode}
 \usepackage{float}
 \usepackage[]{geometry}
-\usepackage{todonotes}
-\usepackage[T1]{fontenc}
 
+
+\usepackage{xcolor}
+\newcommand\todo[1]{\textcolor{red}{#1}}
+\newcommand\modify[2]{\textcolor{blue}{#1}}
+
+\usepackage[T1]{fontenc}
 % Decreasing the margins for readability
 \geometry{
 	left=1in,    % Left margin
@@ -36,20 +42,23 @@
 \newcommand{\bq}{\mathbf{q}}
 \newcommand{\bx}{\mathbf{x}}
 \newcommand{\bxi}{\mathbf{x}_{i}}
+\newcommand{\bqi}{\mathbf{q}_{i}}
 \newcommand{\eps}{\epsilon}
 \newcommand{\Bq}{B_{\eps}(\bq)}
 \newcommand{\Bx}{\widetilde{B}_{\eps}(\bx)}
 \newcommand{\Bqt}{\widetilde{B}_{\eps}(\bq)}
 \newcommand{\Sd} {\mathcal{S}^{d-1}}
 \newcommand{\Nqt}{\widetilde{N}(\bq)}
+\newcommand{\bNt}{\widetilde{\mathbf{N}}}
 \newcommand{\bu}{\mathbf{u}}
 \newcommand{\bv}{\mathbf{v}}
 \newcommand{\bw}{\mathbf{w}}
-\newcommand{\bY}{\mathbf{R}}
+\newcommand{\bY}{\mathbf{Y}}
 \newcommand{\bX}{\mathbf{X}}
 \newcommand{\bP}{\mathbf{P}}
 \newcommand{\bA}{\mathbf{A}}
 \newcommand{\bB}{\mathbf{B}}
+\newcommand{\bD}{\mathbf{D}}
 \newcommand{\phiCi}{\Phi_i}
 \newcommand{\phiFi}{\overline{\Phi}_i}
 \newcommand{\fPhiCi}[2]{\Phi_{#1,#2}}
@@ -58,6 +67,13 @@
 \newcommand{\omegaFj}{\overline{\Omega}_j}
 \newcommand{\fOmegaCj}[2]{\Omega_{#1,#2}}
 \newcommand{\fOmegaFj}[2]{\overline{\Omega}_{#1,#2}}
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\bXIn}{\bX \in \Real^{n \times d}}
+\newcommand{\bAIn}{\bA \in \Nat^{n \times 2k}}
+\newcommand{\bBIn}{\bB \in \Nat^{2D \times m}}
+
+
 
 \begin{document}
 
@@ -301,7 +317,7 @@ As an example of these concepts, take for instance the vector addition problem $
 		\State \textbf{Inputs}: Vector $\mathbf{u}$, Vector $\mathbf{v}$, Vector $\mathbf{w}$
 		\State \textbf{Define} Kernel \texttt{vectorAdd}($\mathbf{u}$, $\mathbf{v}$, $\mathbf{w}$):
 		\State \quad Calculate global index $i$ using block and thread indices
-		\State \quad $\mathbf{u}$[i] = $\mathbf{v}$[i] + $\mathbf{w}$[i]
+		\State \quad $\mathbf{u}[i]$ = $\mathbf{v}[i]$ + $\mathbf{w}[i]$
 		\State \textbf{End Kernel}
 	\end{algorithmic}
 \end{algorithm}
@@ -321,7 +337,14 @@ As an example of these concepts, take for instance the vector addition problem $
 % TODO talk about how one may use a kernel for a simple task - E.g. addition of two vectors.
 
 \section{CUDA-sDBSCAN}
-CUDA-sDBSCAN is an accelerated implementation of sDBSCAN using GPU hardware. It has the same underlying steps as the original CPU implemented sDBSCAN, except operations are transferred to the GPU when necessary. CUDA-sDBSCAN retains the same parameters as sDBSCAN, and adds a few hyper-parameters to account for the use of a GPU. We break down CUDA-sDBSCAN along similiar lines to sDBSCAN, there is preprocessing, identification of key points and clustering. C
+CUDA-sDBSCAN is an accelerated implementation of sDBSCAN using GPU hardware. It has the same underlying steps as the original CPU implemented sDBSCAN, except operations are transferred to the GPU when necessary. CUDA-sDBSCAN retains the same parameters as sDBSCAN, and adds a few hyper-parameters to account for the use of a GPU. We break down CUDA-sDBSCAN along slightly different lines to sDBSCAN; There is preprocessing, candidate distance calculations, and clustering steps.
+
+% General plan:
+% 1. Preprocessing Steps
+% 2. Distance calculations
+% 3. Core point identification and preliminary adjacency list
+% 4. Adjacency list adjustment
+% 5. Clustering
 
 \subsection{Preprocessing}
 The process of finding the closest/furthest $k$ random vectors to each query point $\bq$, and the closest/furthest $m$ data points can be easily parallelised using the power of a GPU. sDBSCAN's preprocessing steps can be rewritten for the GPU using a few key steps; these are described below.
@@ -330,8 +353,8 @@ The process of finding the closest/furthest $k$ random vectors to each query poi
 The projections between each dataset point $\bx_i$ and a given random vector $\br_j$ can be easily parallelised using a large matrix multiplication. This matrix multiplication can be easily paraellized using GPU hardware.
 
 \begin{enumerate}
-    \item First, create a matrix $\bY \in \mathbb{R}^{d \times D}$ with entires sampled from $\mathcal{N}(0, 1)$, the shape of $R$ means that $D$ random vectors of length $d$ are stored \textit{column-wise} within it.
-    \item Re-express the set of data points $X$ into a matrix $\bX \in \mathbb{R}^{n \times d}$, the shape of $\bX$ means that the $n$ dataset points of length $d$ are stored \textit{row-wise} within it.
+    \item First, create a matrix $\bY \in \mathbb{R}^{d \times D}$ with entires sampled from $\mathcal{N}(0, 1)$, the shape of $\bY$ means that $D$ random vectors of length $d$ are stored \textit{column-wise} within it.
+    \item Re-express the set of data points $X$ into a matrix $\bXIn$, the shape of $\bX$ means that the $n$ dataset points of length $d$ are stored \textit{row-wise} within it.
 \end{enumerate}
 
 Now given the matrices $\bY$ and $\bX$, simply calculate the matrix product $\bP=\bX\bY$. A given entry $\bP_{ij}$ is then the projection of the data point $\bxi$ onto the random vector $\brj$.
@@ -381,7 +404,7 @@ For ease of indexing large matrices when working with a GPU, the content of the 
 
 \fOmegaCj{1}{1} & \fOmegaCj{1}{2} & \cdots & \fOmegaCj{1}{m} \\ 
 \fOmegaFj{1}{1} & \fOmegaFj{1}{2} & \cdots & \fOmegaFj{1}{m} \\ 
-\vdots & \vdots & \ddots & \vdots             \\
+\vdots&\vdots&\ddots&\vdots\\
 
 \fOmegaCj{D}{1} & \fOmegaCj{D}{2} & \cdots & \fOmegaCj{D}{m} \\ 
 \fOmegaFj{D}{1} & \fOmegaFj{D}{2} & \cdots & \fOmegaFj{D}{m} \\ 
@@ -389,9 +412,101 @@ For ease of indexing large matrices when working with a GPU, the content of the 
 \label{eq:matrixB}
 \end{equation}
 
+\subsection{Distances of Candidate Neighbourhoods}
+Once the preprocessing steps have been completed, the distances between each query point $\bq$ and their corresponding candidate points in $\Nqt$ can be found. This is done by creating the distance matrix $\bD \in \Real^{n \times 2km}$. 
+
+The matrices $\bA$ and $\bB$ are used to index the matrix $\bX$ in order to find the indices of each of the candidate vectors for each query vector. Essentially, the $i^{th}$ row in $\bA$ corresponds to the query point $\bqi$. Conversely, the ${(2j + {b})}^{th}$ (for $b \in \{0, 1\}$) corresponds to the random vector $\brj$. For given row of $\bA$, the first $k$ entries index the \textit{even} rows of $\bB$, while the later $k$ entries index the \textit{odd} rows of $\bB$. This process is described by Algorithm \ref{alg:candidate-indices}.
+
+
+\begin{algorithm}[H]
+    \caption{Finding the indices of candidate vectors}
+    \label{alg:candidate-indices}
+    \begin{algorithmic}
+        \State \textbf{Inputs}: $\bAIn$, $\bBIn$
+        \State Initialize empty $\mathbf{I} \in \Nat^{n \times 2km}$ \Comment{$\mathbf{I}$ stores the indices of candidate neighbourhood vectors \textit{rowwise}}
+        \For{\text{each} $i \in \{0, 1, \ldots, n-1\}$}
+        \State $i_{col} \gets 0$
+        \For{\text{each} $i_{A} \in \{0, 1, \ldots, 2k-1\}$}
+        \State $a = \bA[i, i_{A}]$
+        \For{\text{each} $i_{B} \in \{0, 1, \ldots, m\}$}
+        \State $\mathbf{I}[i, i_{col}] \gets \bB[a, i_{B}]$
+        \State $i_{col} \gets \alpha + 1$
+        \EndFor
+        \EndFor
+        \EndFor
+    \State \Return $\mathbf{I}$
+    \end{algorithmic}
+\end{algorithm}
+
+The matrices $\bA$ and $\bB$ are intended to be used with matrix libraries such as NumPy or PyTorch. As such, the matrix indexing equivalent of \ref{alg:candidate-indices} is much simpler. Algorithm \ref{alg:make-distances} details the creation of the distances matrix $\bD$ u    sing matrix indexing.
+
+\begin{algorithm}[H]
+    \caption{Creation of the distances matrix $\bD$}
+    \label{alg:make-distances}
+    \begin{algorithmic}[1]
+        \State \textbf{Inputs}: $\bXIn$, $\bAIn$, $\bBIn$
+        \State Initialize an empty distances matrix $\bD \in \Real^{n \times 2km}$
+    
+        \State Retrieve candidate vectors $\bNt \gets \bX\left[ \bB\left[ \bA \right] \right]$ \Comment{$\bNt \in \Real^{n \times 2k \times m \times d}$}
+        
+        \State Reshape $\bNt$ into $\bNt \in \Real^{n \times 2km \times d}$ \Comment{Reshape candidate vectors}
+    
+        \State Compute $\bD \gets \operatorname{dist}(\bNt, \bX)$ \Comment{$\operatorname{dist}$ is an arbitrary distance function}
+    
+        \State \Return $\bD$ 
+    \end{algorithmic}
+\end{algorithm}
+
+As an example, for using cosine similarity as the distance metric, the function $\operatorname{dist}$ could be given by Algorithm \ref{alg:dist-cosine}.
+
+\begin{algorithm}[H]
+	\caption{Implementation of a $\operatorname{dist}$ function to find cosine distances $\bD$}
+	\label{alg:dist-cosine}
+	\begin{algorithmic}[1]
+        \State \textbf{Inputs}: $\bXIn$, $\bNt$ 
+        \State Compute $\mathbf{T} \gets \bNt \times \bX[:, \text{newaxis}, :] $ \Comment{$\mathbf{T} \in \Real^{n \times 2km \times d}$} 
+        \State \Return $\mathbf{1}_{n \times 2km} - \operatorname{sum}(\mathbf{T}, \text{axis}=2)$ \Comment{Perform sum reduction along the 2nd axis}
+	\end{algorithmic}
+\end{algorithm}
+
+\subsection{Clustering Steps}
+
+\textit{** Talk about how once the distances matrix is found, we can form clusters. Make it clear that we borrow heavily from the G-DBSCAN paper. Say that the clustering steps are shared between the CPU and the GPU}
+
+\subsubsection{Finding the degree and start index arrays}
+
+\textit{** Talk about how this is simply a reduction along the rows of the distances matrix, where the distance is below the threshold. Talk about what this corresponds to in G-DBSCAN. For simplicity however, we could use the identical notation - I think its E? Include pseudo code here also}
+
+\textit{** Now talk how you can find the vector V (start index array). Comment by saying this is simply done using a exclusive scan using the thrust library}
+
+\subsubsection{Finding the cluster graph adjacency list}
+
+\textbf{** Now that we have the degree and start index arrays, we can create the adjacency list of the cluster graph. Again, say how we heavily borrow from G-DBSCAN. Give the adjusted kernel function that is used to find the adjacency list}
+
+% The kernel here to find the adjacency list from the distances matrix
+
+\subsubsection{Forming Clusters}
+
+\textit{** Now that we have the adjacency list, we can form the clusters. Talk about how we now take the adjacency list results from the GPU and copy them to the CPU. The clustering details are now relatively trivial- basically say that a BFS is done using the adjacency list -- don't think we really need to go more in depth than this. Justify why we didn't do clustering on the GPU - perhaps we need to show this with data.}
+
+\section{Algorithmic Extensions}
+
+\subsection{Using batching techniques}
+
+\textit{** Talk about how the memory complexity of CUDA-sDBSCAN is rather not scalable for large datasets. As a result, we have to use batch processing to tackle the distances matrix, and thus the clustering steps. Give a basic rundown of how batch processing is used. However, I don't think we need to go more in depth than simply saying batch processing is used}
+
+\subsection{Ensuring Symmetry of the Adjacency List}
+
+\textit{** Talk about how the naive implementation of this is may not create an entirely symmetrical graph structure. As a result, there is an optional add on step using the CPU that ensures symmetry}
+
 \section{Experiment}
 
+\section{Future Work}
+
+\textit{** Basically say what we think is currently missing, and what could be added in the future to make it even better. Some suggestions: 1. GPU clustering, 2. Adaptive model to the given hardware - i.e. batching parameters are more or less hard coded.}
+
 \section{Conclusion}
+
 
 \bibliographystyle{plain}
 \bibliography{refs, refs-related}
