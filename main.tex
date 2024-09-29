@@ -14,6 +14,7 @@
 \usepackage{algpseudocode}
 \usepackage{float}
 \usepackage[]{geometry}
+\usepackage{svg}
 
 
 \usepackage{xcolor}
@@ -58,7 +59,9 @@
 \newcommand{\bP}{\mathbf{P}}
 \newcommand{\bA}{\mathbf{A}}
 \newcommand{\bB}{\mathbf{B}}
-\newcommand{\bD}{\mathbf{D}}
+\newcommand{\bAt}{\widetilde{\mathbf{A}}}
+\newcommand{\bBt}{\widetilde{\mathbf{B}}}
+\newcommand{\bDt}{\widetilde{\mathbf{D}}}
 \newcommand{\phiCi}{\Phi_i}
 \newcommand{\phiFi}{\overline{\Phi}_i}
 \newcommand{\fPhiCi}[2]{\Phi_{#1,#2}}
@@ -72,6 +75,12 @@
 \newcommand{\bXIn}{\bX \in \Real^{n \times d}}
 \newcommand{\bAIn}{\bA \in \Nat^{n \times 2k}}
 \newcommand{\bBIn}{\bB \in \Nat^{2D \times m}}
+\newcommand{\bDIn}{\bD \in \Real^{n \times 2km}}
+\newcommand{\Da}{\textit{Da}}
+\newcommand{\Sa}{\textit{Sa}}
+\newcommand{\Ea}{\textit{Ea}}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
 
 
 
@@ -413,7 +422,7 @@ For ease of indexing large matrices when working with a GPU, the content of the 
 \end{equation}
 
 \subsection{Distances of Candidate Neighbourhoods}
-Once the preprocessing steps have been completed, the distances between each query point $\bq$ and their corresponding candidate points in $\Nqt$ can be found. This is done by creating the distance matrix $\bD \in \Real^{n \times 2km}$. 
+Once the preprocessing steps have been completed, the distances between each query point $\bq$ and their corresponding candidate points in $\Nqt$ can be found. This is done by creating the distance matrix $\bDIn$. 
 
 The matrices $\bA$ and $\bB$ are used to index the matrix $\bX$ in order to find the indices of each of the candidate vectors for each query vector. Essentially, the $i^{th}$ row in $\bA$ corresponds to the query point $\bqi$. Conversely, the ${(2j + {b})}^{th}$ (for $b \in \{0, 1\}$) corresponds to the random vector $\brj$. For given row of $\bA$, the first $k$ entries index the \textit{even} rows of $\bB$, while the later $k$ entries index the \textit{odd} rows of $\bB$. This process is described by Algorithm \ref{alg:candidate-indices}.
 
@@ -473,15 +482,74 @@ As an example, for using cosine similarity as the distance metric, the function 
 
 \textit{** Talk about how once the distances matrix is found, we can form clusters. Make it clear that we borrow heavily from the G-DBSCAN paper. Say that the clustering steps are shared between the CPU and the GPU}
 
-\subsubsection{Finding the degree and start index arrays}
+Once the distances matrix $\bD$ has been found, the steps concerning clustering can be completed. This stage of the algorithm borrows heavily from the approach taken by Andrade et al.'s G-DBSCAN \cite{gholizadeh_k-dbscan_2021}. The approach of this paper is to create a graph adjacency list \cite{BUSATO2017163} that can be used to form clusters with a breadth-first search (BFS). An adjacency list can be thought of as a \textit{flattened} representation of the a more conventional adjacency matrix \cite{Bapat2010}. To demonstrate, take a graph $G(V, E)$ composed of a set of vertices $V$ ($|V|=n$) and a set of edges $E$. Define an adjacency list $\Ea$, and the lists $\Da$ and $\Sa$, where $|\Ea| = |E|$ and $|\Da| = |\Sa| = n$. To then find the list of the adjacent vertices for the vertex $V_i$ (denoted by $\Ea(V_i)$, use the following steps:
 
-\textit{** Talk about how this is simply a reduction along the rows of the distances matrix, where the distance is below the threshold. Talk about what this corresponds to in G-DBSCAN. For simplicity however, we could use the identical notation - I think its E? Include pseudo code here also}
+\begin{enumerate}
+    \item Find $\Da_i$, this is the \textit{degree} of $V_i$ (the number of adjacency vertices) in the graph $G(V, E)$. Take $\Da_i = \alpha$ for simplicity.
+    \item Now find $\Sa_i$, this indicates the \textit{start index} of the stored adjacent vertices within the adjacency list $\Ea$. Take $\Da_i = \beta$ for simplicity.
+    \item Starting at the index $\Ea_{\beta}$, the next $\alpha$ places in $\Ea$ are the indices of the adjacency vertices to the vertex $V_i$. Formally: $\Ea(V_i) = [\Ea_{\beta}, \Ea_{\beta+1}, \dots, \Ea_{\alpha}]$
 
-\textit{** Now talk how you can find the vector V (start index array). Comment by saying this is simply done using a exclusive scan using the thrust library}
+\end{enumerate}
+
+Figure \ref{fig:graph-example} shows an example of these concepts using a simple graph $G(V, E)$ with $n = 4$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{figs/adjlist.drawio.pdf}
+    \caption{Using the arrays $\Ea$, $\Da$ and $\Sa$ to represent the graph $G(V, E)$. Adapted from Figure 2 from G-DBSCAN \cite{andrade_g-dbscan_2013} to use the notation of this paper.}
+    \label{fig:graph-example}
+\end{figure}
+
+\subsubsection{Finding the $\Da$ and $\Sa$ arrays}
+
+The arrays $\Da$ and $\Sa$ can be easily derived from the distances matrix $\bD$. To find an entry $\Da_i$, simply count the entries of the $i^{\text{th}}$-row of $\bD$ that are less than $\eps$. Once $\Va$ has been found, simply perform an exclusive scan \cite{harris2007parallel} of $\Va$ to get $\Sa$. This operation can be easily completed using GPU-based matrix libraries such as Pytorch \cite{Ansel_PyTorch_2_Faster_2024} or CuPy \cite{cupy_learningsys2017}. The pseudo-code to find $\Va$ and $\Ea$ is shown in algorithm \ref{alg:find-VaEa}.
+
+\begin{algorithm}
+    \caption{Finding the arrays $\Da$ and $\Sa$}
+    \begin{algorithmic}[1]
+        \State \textbf{Inputs}: $n$, $\bD \in \Real^{n \times 2km}$
+        \State Compute $\Da \gets \operatorname{sum}(\bD < \eps, \text{axis}=1)$ \Comment{Reduction sum across the rows of $\bD$}
+        \State Compute $\Sa \gets \operatorname{exclusiveScan}(\Va)$ 
+        \State \Return $\Da$, $\Sa$
+    \end{algorithmic}
+    \label{alg:find-VaEa}
+\end{algorithm}
 
 \subsubsection{Finding the cluster graph adjacency list}
 
-\textbf{** Now that we have the degree and start index arrays, we can create the adjacency list of the cluster graph. Again, say how we heavily borrow from G-DBSCAN. Give the adjusted kernel function that is used to find the adjacency list}
+\textit{** Now that we have the degree and start index arrays, we can create the adjacency list of the cluster graph. Again, say how we heavily borrow from G-DBSCAN. Give the adjusted kernel function that is used to find the adjacency list}
+
+Once the arrays $\Da$ and $\Sa$ are created, the graph adjacency list can be found. For this step, we borrow heavily from the parallel adjacency list construction used by G-DBSCAN \cite{G_DBSCAN} - adapting where necessary for this specific algorithm. \todo{add more here}
+
+Algorithm \ref{alg:adj-list-fun} details the pseudo code to construct the adjacency list $\Ea$. A CUDA kernel to construct the adjacency list in parallel for each vertex in the graph - shown in algorithm \ref{alg:adj-list-kernel}. This kernel is launched with one CUDA thread allocated to each vertex. Note that due to the input requirements of CUDA kernels, we use row-wise \textit{flattened} representations of the matrices $\bA$, $\bB$ and $\bD$ - denoted by $\bAt$, $\bBt$ and $\bDt$ respectively. 
+
+\begin{algorithm}[H]
+    \caption{Function to construct the adjacency list $\Ea$}
+    \begin{algorithmic}
+        \State \textbf{Inputs}: $\bAt \in \Real^{2nk}$, $\bBt \in \Real^{2Dm}$, $\bDt \in \Real^{2nkm}$, $\Da, \Sa \in \Real^{n}$, $n, k, m \in \Nat$, $\eps \in \Real$ 
+        \State Initialize empty device array $\Ea$ with size $\Da[n-1] + \Sa[n-1]$
+        \State Call \texttt{constructAdjacencylist} to fill values of $\Ea$ \\
+        \Return $\Ea$      
+
+        \\
+
+        \State \textbf{Define} \textbf{Kernel} \texttt{constructAdjacencyList}($\bAt, \bBt, \bDt, \Ea,  \Da, \Sa, n, k, m, \eps$):
+        \State \quad $\text{threadIdx} \gets \text{blockIdx}.x * \text{blockDim}.x + \text{threadIdx}.x $
+        \State \quad $\text{currIdx} \gets \Sa[tId]$ \Comment{Current index within $\Ea$}
+        \State \quad $\text{nRows} \gets 2*k*m$
+        \\State \quad \For{\text{each}  $j \in [0, 1, 2 \dots, nRows]$}
+        \State \quad \If{$\bDt[\text{threadIdx} * nRows + j] < \eps$}
+        \State \quad $\text{ACol} \gets \lfloor j / m \rfloor $
+        \State \quad $\text{BCol} \gets \operatorname{mod}(j, m)$
+        \State \quad $\text{BRow} \gets \bAt[\text{threadIdx} * 2 * k + \text{ACol}]$
+        \State \quad $\text{candidateVecIdx} \gets \bBt[\text{BRow} * m + \text{BCol}]$
+        \State \quad $\text{\Ea[currIdx] \gets  candidateVecIdx}$
+        \State \quad $\text{currIdx} \gets  \text{currIdx} + 1$
+        \EndIf
+        \EndFor
+    \end{algorithmic}
+    \label{alg:adj-list-fun}
+\end{algorithm}
 
 % The kernel here to find the adjacency list from the distances matrix
 
