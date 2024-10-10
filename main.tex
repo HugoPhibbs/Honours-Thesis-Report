@@ -15,6 +15,7 @@
 \usepackage{float}
 \usepackage[]{geometry}
 \usepackage{svg}
+\usepackage{caption}
 
 
 \usepackage{xcolor}
@@ -59,6 +60,7 @@
 \newcommand{\bP}{\mathbf{P}}
 \newcommand{\bA}{\mathbf{A}}
 \newcommand{\bB}{\mathbf{B}}
+\newcommand{\bD}{\mathbf{D}}
 \newcommand{\bAt}{\widetilde{\mathbf{A}}}
 \newcommand{\bBt}{\widetilde{\mathbf{B}}}
 \newcommand{\bDt}{\widetilde{\mathbf{D}}}
@@ -79,10 +81,7 @@
 \newcommand{\Da}{\textit{Da}}
 \newcommand{\Sa}{\textit{Sa}}
 \newcommand{\Ea}{\textit{Ea}}
-\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
-
-
-
+\newcommand{\dist}{\operatorname{dist}}
 
 \begin{document}
 
@@ -112,33 +111,30 @@ Due to the parallelizable nature of DBSCAN, other approaches \cite{andrade_g-dbs
 \section{Preliminaries}
 
 \subsection{DBSCAN}
-\comment{}{Perhaps comment that the below is a naive implementation of DBSCAN?}
-In a nutshell, DBSCAN \cite{DBSCAN} is an algorithm to cluster related data points together based on a given distance metric between points. The algorithm is composed of two key processes: the classification of points identified as \textit{core} and the formation of clusters based on these \textit{core} points.
-
-For the sake of explanation consider a set of data points $X = \{\bx_1, \bx_2, \dots, \bx_n\}$, where $\textit{dim}(\bx_i) = d$. The identification of core points can be completed as follows:
+DBSCAN \cite{DBSCAN} is a clustering algorithm based on grouping together \textit{densely} packed points based on a specified distance metric. Given a dataset $X$, and a point $\bx \in X$, the region around $\bx$ is considered \textit{dense} if there at least $\text{minPts}$ number of points within a $\eps$ distance of $\bx$. The algorithm is composed of two key processes: the classification of points identified as \textit{core} and the formation of clusters based on these \textit{core} points. For the sake of explanation consider a set of data points $X = \{\bx_1, \bx_2, \dots, \bx_n\}$, where $\textit{dim}(\bx_i) = d$. The identification of core points can be completed as follows:
 
 \begin{enumerate}
-	\item For each data point $q \in X$ find the distance  $\textit{dist}(\bx, \bq)$  to all other data points $\bx \in X$. If $\textit{dist}(\bx, \bq)$ is less than the maximum clustering distance $\eps$, add $\bx$ to the neighbourhood set of $\bq$, denoted by $\Bq$ 
-	\item For each $\bq \in X$, if $|\Bq|$ is greater than or equal to a threshold $minPts$,then the point $\bq$ is a \textit{core point}. Add the tuple $(\bq, \Bq)$ to the core point set $C$. 
+	\item Complete a \textit{$\eps$-neighbourhood search} for each data point. For each query point $q \in X$, find the distance  $\dist(\bx, \bq)$  to all other data points $\bx \in X$. If $\dist(\bx, \bq) < \eps$, add $\bx$ to the neighbourhood set of $\bq$ - denoted by $\Bq$. . \textit{Note}: $\dist(\bx, \bq)$ can be an arbitrary distance measure \cite{DBSCAN_REVISITED} such as cosine similarity, L1/L2 distance, or Jaccard Simmilarity \cite{KANNAN201663}.
+	\item For each $\bq \in X$, if $|\Bq|$ is greater than or equal to a threshold $\text{minPts}$, then the point $\bq$ is a \textit{core-point}. Add the tuple $(\bq, \Bq)$ to the core-point neighbourhood set $C$.
 \end{enumerate}
 
-The pseudo code for the identification of key points is shown in algorithm \ref{alg:dbscan-core-points}.
+% Need to add citations for these? - from sDBSCAN paper?
 
-% Need to add citations for these?
+The process of identifying  core points is formalised in Algorithm \ref{alg:dbscan-core-points}.
+
 \begin{algorithm}[H]
 	\caption{DBSCAN, classification of core points}
 	\label{alg:dbscan-core-points}
 	\begin{algorithmic}[1]
 		\State \textbf{Input:} Data points $X = \{\bx_1, \bx_2, \dots, \bx_n\}$, $\eps$, $minPts$
-		\State \textbf{Output:} Set containing core points and their $\eps$-neighbourhoods
+		\State \textbf{Output:} The set $C = \{(\bq, \Bq)\ | \bq \text{ is core} \}$ containing core points and their $\eps$-neighbourhoods
 		
 		\State Initialize $C = \emptyset$
 	
 		\For{each data point $\bq \in X$}
 		\State Initialize $\Bq = \emptyset$
 		\For{each data point $\bx \in X$}
-		\State Compute $\textit{dist}(\bx, \bq)$
-		\If{$\textit{dist}(\bx, \bq) < \eps$}
+		\If{$\dist(\bx, \bq) < \eps$}
 		\State Add $\bx$ to $\Bq$
 		\EndIf
 		\EndFor
@@ -150,7 +146,7 @@ The pseudo code for the identification of key points is shown in algorithm \ref{
 	\end{algorithmic}
 \end{algorithm}
 
-Once core points are identified, the data set can be partitioned into clusters. A cluster is formed by considering all points that are within \textit{direct} or \textit{transitive} $\eps$ distance from each other. Given the identification of core points and their neighbourhoods, clusters can be formed using algorithm \ref{alg:dbscan}. The result of the DBSCAN algorithm is a graph $G$, where each connected component is a cluster of the data set $X$
+Once core points are identified, dataset points are grouped into clusters or classified as \textit{noise}. A cluster consists of points that are \textit{density reachable} from each other. Two points are density reachable if they either directly neighbour the same core point or can be connected through a chain of neighbouring core points. Any point that is not part of a cluster is classified as \textit{noise}. A point that is neither \textit{noise} nor \textit{core} is regarded as a \textit{border} point. The result of the DBSCAN algorithm can be represented as a graph $G(V, E)$, where each data point $\bx \in X$ is a node. An edge $e_{i \to j} \in E$ exists between two points $\bxi$ and $\bx_j$ if they belong to the same cluster and are within $\eps$ distance of each other. The process of creating clusters as part of a graph $G$ is formalised in Algorithm \ref{alg:dbscan}. Figure \ref{fig:clusters} shows the formation of a simple DBSCAN cluster.
 
 % TODO ok that I literally copy pasted this from sDBSCAN source?
 \begin{algorithm}[H]
@@ -166,30 +162,12 @@ Once core points are identified, the data set can be partitioned into clusters. 
 		\State \textbf{return} connected components of $G$
 	\end{algorithmic}
 \end{algorithm}
-% TODO, how to change the above, such that the set C initialization is more neat?
-
-Once the clustering step is complete, we can classify points into several type - these are described in the list below. Figure \ref{fig:core-points} details this concept further.
-
-\begin{enumerate}
-	\item \textbf{Core Points} these are points with at-least $minPts$ points within $\eps$ distance of itself.
-	\item \textbf{Border Points} these are \textit{non-core} points that are nevertheless included into a given cluster.
-	\item \textbf{Noise Points} these are points that are \textit{neither} core or border points. They are not included in any clusters.
-\end{enumerate}
 
 % TODO replace with the actual fig, this was simply a screen snip
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.5\linewidth]{figs/core_points.png}
-	\caption{Classification of Core Points \cite{S_DBSCAN}}
-	\label{fig:core-points}
-\end{figure}
-
-Figure \ref{fig:clusters} shows an example of created clusters from DBSCAN. The red points are identified as core, the blue as noise, and the yellow border points. 
 
 \begin{figure}[H]
-	\centering
-	\includegraphics[width=0.5\linewidth]{figs/formation_of_clusters.png}
-	\caption{The formation of clusters from DBSCAN \cite{DBSCAN_REVISITED}}
+	\centering	\includegraphics[width=0.7\linewidth]{figs/formation_of_clusters.png}
+	\caption{The formation of a DBSCAN cluster. \\ Cluster points are enclosed in the red circles. Source: \cite{jian2024}}
 	\label{fig:clusters}
 \end{figure}
 
@@ -198,7 +176,8 @@ Figure \ref{fig:clusters} shows an example of created clusters from DBSCAN. The 
 
 \subsection{sDBSCAN}
 \comment{}{Comment here about the scalability of DBSCAN, and how this is addressed with sDBSCAN.}
-sDBSCAN\cite{S_DBSCAN} is an implementation of DBSCAN based on using random projections to rapidly speed up the $\eps$-neighbourhood search for each particular data point. Besides the given DBSCAN inputs of $X$, $\eps$, and $minPts$, sDBSCAN adds a few more parameters - these are described in table \ref{tab:definitions}.
+sDBSCAN\cite{S_DBSCAN} is an implementation of DBSCAN based on using random projections to rapidly speed up the 
+$\eps$-neighbourhood search for each data point. Besides the existing DBSCAN inputs of $X$, $\eps$, and $minPts$, sDBSCAN adds a few more key parameters - these are described in table \ref{tab:definitions}. The sDBSCAN algorithm can be summarised into a few key steps: pre-processing, identification of key points, and formation of clusters. 
 
 \begin{table}[H]
 	\centering
@@ -206,7 +185,7 @@ sDBSCAN\cite{S_DBSCAN} is an implementation of DBSCAN based on using random proj
 		\hline
 		\textbf{Parameter} & \textbf{Description} \\ 
 		\hline
-		$Y$ & A set of $D$ random vectors with the same dimension as points in $X$. Each random vector has coordinates sampled from the standard normal distribution. Formally: $\mathbf{Y} = \left\{ \br^i \mid \br^i \in \mathbb{R}^d, \ \br^i \sim \mathcal{N}(0,1), \ i \in [D] \right\}$ \\ \hline
+		$Y$ & A set of $D$ random vectors with the same dimension as $X$. Each random vector has coordinates sampled from the standard normal distribution. Formally: $Y = \left\{ \br^i \mid \br^i \in \mathbb{R}^d, \ \br^i \sim \mathcal{N}(0,1), \ i \in [D] \right\}$ \\ \hline
 		$k$ & The number of closest/furthest random vectors from $Y$ to store for each query point $\bq \in X$ \\ \hline
 		$m$ & The number of closest/furthest query points from $X$ to store for each random vector $\br \in Y$. Where $m > minPts$.\\ \hline
 	\end{tabular}
@@ -216,17 +195,19 @@ sDBSCAN\cite{S_DBSCAN} is an implementation of DBSCAN based on using random proj
 
 \comment{}{Perhaps some more extrapolation on the usage of the random points, before going straight into the business of projections}
 
-The sDBSCAN algorithm can be summarised into a few key steps: pre-processing, identification of key points, and formation of clusters. The pre-processing steps are as follows:
+\subsubsection{Preprocessing}
+
+sDBSCAN relies on using random projections to find 
+
+The pre-processing steps are as follows (also formalised in Algorithm \ref{alg:preprocessing}):
 
 \begin{enumerate}
 	\item For each random vector $\br_i \in Y$, calculate it's projection to each query point $\bq \in X$. 
-	\item For each query point $\bq \in X$, using the projections store its top $k$ closest and furthest random vectors. The set of points 
+	\item For each query point $\bq \in X$, using its random projections, store its top $k$ closest and furthest random vectors.
 	\item For each random vector $\br_i \in Y$, using the projections, store its top $m$ closest and furthest data set points.
 \end{enumerate}
 
-Once preprocessing is complete, we can define the \textit{Candidate Neighbourhood Set} $\Nqt$ of a given query point $\bq$. This set is composed of the $2km$ vectors that are either the $m$ closest points to the closest $k$ random vectors to $\bq$, or the $m$ furthest points to the $k$ furthest random vectors to $\bq$. $\Nqt$ is essentially the set of points that is searched when forming the approximate $\eps$-neighbourhood set $\Bqt$ of a query point $\bq$ - this will be clear after describing the complete sDBSCAN algorithm. 
-
-Algorithm \ref{alg:preprocessing} shows the pseudo code for sDBSCAN's preprocessing steps.
+% Once preprocessing is complete, we can define the \textit{Candidate Neighbourhood Set} $\Nqt$ of a given query point $\bq$. This set is composed of the $2km$ vectors that are either the $m$ closest points to the closest $k$ random vectors to $\bq$, or the $m$ furthest points to the $k$ furthest random vectors to $\bq$. $\Nqt$ is the set of points that is searched when forming the approximate $\eps$-neighbourhood set $\Bqt$ of a query point $\bq$ - this will be clear after describing the complete sDBSCAN algorithm. Algorithm \ref{alg:preprocessing} shows the pseudo code for sDBSCAN's preprocessing steps.
 
 \begin{algorithm}[H]
 	\caption{Preprocessing}
@@ -241,7 +222,7 @@ Algorithm \ref{alg:preprocessing} shows the pseudo code for sDBSCAN's preprocess
 	\end{algorithmic}
 \end{algorithm}
 
-From here, the preprocessing steps are essentially used to guide an informed search for the $\eps$ neighbourhood of each data point $\bx \in X$. This step uses the random projections to form an approximate $\eps$-neighbourhood set $\Bqt$ for each data-set point $\bq$. The pseudo code for this step is shown in \ref{alg:neighborhood}. Once this step is complete, perform the standard DBSCAN clustering step \ref{alg:dbscan} on the set of estimated core points and their neighbourhoods sets $\Bqt$ for $\bq$ identified as core. The pseudo code for this step is shown in \ref{alg:sdbscan}
+From here, the preprocessing steps are essentially used to guide an informed search for the $\eps$-neighbourhood of each data point $\bx \in X$. This step uses the random projections to form an approximate $\eps$-neighbourhood set $\Bqt$ for each data-set point $\bq$. The pseudo code for this step is shown in \ref{alg:neighborhood}. Once this step is complete, perform the standard DBSCAN clustering step \ref{alg:dbscan} on the set of estimated core points and their neighbourhoods sets $\Bqt$ for $\bq$ identified as core. The pseudo code for this step is shown in \ref{alg:sdbscan}
 
 \begin{algorithm}[H]
 	\caption{Finding core points and their neighborhoods}
@@ -502,14 +483,14 @@ Figure \ref{fig:graph-example} shows an example of these concepts using a simple
 
 \subsubsection{Finding the $\Da$ and $\Sa$ arrays}
 
-The arrays $\Da$ and $\Sa$ can be easily derived from the distances matrix $\bD$. To find an entry $\Da_i$, simply count the entries of the $i^{\text{th}}$-row of $\bD$ that are less than $\eps$. Once $\Va$ has been found, simply perform an exclusive scan \cite{harris2007parallel} of $\Va$ to get $\Sa$. This operation can be easily completed using GPU-based matrix libraries such as Pytorch \cite{Ansel_PyTorch_2_Faster_2024} or CuPy \cite{cupy_learningsys2017}. The pseudo-code to find $\Va$ and $\Ea$ is shown in algorithm \ref{alg:find-VaEa}.
+The arrays $\Da$ and $\Sa$ can be easily derived from the distances matrix $\bD$. To find an entry $\Da_i$, simply count the entries of the $i^{\text{th}}$-row of $\bD$ that are less than $\eps$. Once $\Da$ has been found, simply perform an exclusive scan \cite{harris2007parallel} of $\Da$ to get $\Sa$. This operation can be easily completed using GPU-based matrix libraries such as Pytorch \cite{Ansel_PyTorch_2_Faster_2024} or CuPy \cite{cupy_learningsys2017}. The pseudo-code to find $\Va$ and $\Ea$ is shown in algorithm \ref{alg:find-VaEa}.
 
 \begin{algorithm}
     \caption{Finding the arrays $\Da$ and $\Sa$}
     \begin{algorithmic}[1]
         \State \textbf{Inputs}: $n$, $\bD \in \Real^{n \times 2km}$
         \State Compute $\Da \gets \operatorname{sum}(\bD < \eps, \text{axis}=1)$ \Comment{Reduction sum across the rows of $\bD$}
-        \State Compute $\Sa \gets \operatorname{exclusiveScan}(\Va)$ 
+        \State Compute $\Sa \gets \operatorname{exclusiveScan}(\Da)$ 
         \State \Return $\Da$, $\Sa$
     \end{algorithmic}
     \label{alg:find-VaEa}
@@ -543,7 +524,7 @@ Algorithm \ref{alg:adj-list-fun} details the pseudo code to construct the adjace
         \State \quad $\text{BCol} \gets \operatorname{mod}(j, m)$
         \State \quad $\text{BRow} \gets \bAt[\text{threadIdx} * 2 * k + \text{ACol}]$
         \State \quad $\text{candidateVecIdx} \gets \bBt[\text{BRow} * m + \text{BCol}]$
-        \State \quad $\text{\Ea[currIdx] \gets  candidateVecIdx}$
+        \State \quad $\Ea[\text{currIdx}] \gets  candidateVecIdx$
         \State \quad $\text{currIdx} \gets  \text{currIdx} + 1$
         \EndIf
         \EndFor
@@ -553,9 +534,13 @@ Algorithm \ref{alg:adj-list-fun} details the pseudo code to construct the adjace
 
 % The kernel here to find the adjacency list from the distances matrix
 
+\textit{** Add a comment here how the adjacency list may need to be processed!}
+
 \subsubsection{Forming Clusters}
 
 \textit{** Now that we have the adjacency list, we can form the clusters. Talk about how we now take the adjacency list results from the GPU and copy them to the CPU. The clustering details are now relatively trivial- basically say that a BFS is done using the adjacency list -- don't think we really need to go more in depth than this. Justify why we didn't do clustering on the GPU - perhaps we need to show this with data.}
+
+Once the adjacency list $\Ea$ has been found, the actual formation of clusters can be completed. This is done using a Breadth First Search (BFS) \cite{jason199} on the CPU. To complete this process, simply copy the arrays $\Ea$, $\Da$ and $\Sa$ from device (GPU) to host (CPU) memory. The BFS is done by expanding the frontier only for \textit{core} points (a point $\bxi \in X$ is considered core if $\Da_i \geq \eps$). This process is largely the same as the original clustering approach taken by sDBSCAN \cite{S_DBSCAN}.
 
 \section{Algorithmic Extensions}
 
@@ -563,9 +548,26 @@ Algorithm \ref{alg:adj-list-fun} details the pseudo code to construct the adjace
 
 \textit{** Talk about how the memory complexity of CUDA-sDBSCAN is rather not scalable for large datasets. As a result, we have to use batch processing to tackle the distances matrix, and thus the clustering steps. Give a basic rundown of how batch processing is used. However, I don't think we need to go more in depth than simply saying batch processing is used}
 
+For large-scale datasets a nïave implementation of CUDA-sDBSCAN may struggle with memory scalability. As an example, consider if the dataset $X$ is MNIST8M \cite{bottou_infimnist}, with $n \approx 8 \times 10^6$, and $d = 784$. Then let $k=2$ and $m=2000$ (chosen due to their accuracy from experiments in sDBSCAN \cite{S_DBSCAN}). Assuming each $\bxi \in X$ is stored as half-precision floats (2 bytes each), then during algorithm \ref{alg:make-distances}, the tensor $\bNt \in \Real^{n \times 2km \times d}$ can come out to a size in bytes shown by equation \ref{eq:N_size}.
+
+\begin{equation}
+    \label{eq:N_size} % Now, the whole block is referenced as one
+    \begin{aligned}
+        \operatorname{size}(\bNt) &= |\bNt| \times 2\,B \\
+        &= (n \times 2km \times d) \times 2\,B \\
+        &\approx 8 \times 10^6 \times 2 \times 2 \times 784 \times 2\,B \\
+        &\approx 50,000,000,000\,B \\
+        &\approx 50\,GB
+    \end{aligned}
+\end{equation}
+
+The projected size of $\bNt$ thus makes CUDA-sDBSCAN infeasible for most everyday GPUS - for example, an NVIDIA GeForce RTX 4060 GPU \cite{nvidia_rtx_4060} has less than 20GB of dedicated memory. Considering this, we have implemented batching techniques to construct the large matrices (notably $\bA, \bB, \bD$ and $\bY$) sequentially. The batch size parameters can be then tuned such these matrices fit within specific GPU memory.
+
 \subsection{Ensuring Symmetry of the Adjacency List}
 
 \textit{** Talk about how the naive implementation of this is may not create an entirely symmetrical graph structure. As a result, there is an optional add on step using the CPU that ensures symmetry}
+
+When implementing sDBSCAN naïvely, a situation can arise where there isn't symmetry between truly adjacent points in the adjacency list $\Ea$. As an example, consider two points $\bx_i, \bx_j \in X$, with $\dist(\bxi, \bx_j) < \eps$. To the random nature of sDBSCAN, one may get a situation where $\bx_j$ is a candidate vector to $\bxi$, but $\bx_i$ \textit{isn't} a candidate vector to $\bx_j$. Consequently, when forming $\Ea$, the $\bx_j$ will be stored as an adjacent point to $\bx_i$, but \textit{not} vice-versa. This situation can lead to a fragmented cluster structure when performing the BFS. To mitigate the effe
 
 \section{Experiment}
 
